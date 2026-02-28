@@ -31,26 +31,20 @@ VitalLink provides a centralized digital platform where students register as blo
 
 **For Software:**
 - Languages used: HTML, CSS, Javascript
-- Frameworks used: [e.g., React, Django, Spring Boot]
-- Libraries used: [e.g., axios, pandas, JUnit]
-- Tools used: [e.g., VS Code, Git, Docker]
+- Frameworks used: Firebase 
+- Libraries used: Firebase SDK
+- Tools used: VS Code, Git, Docker
 
-**For Hardware:**
-- Main components: [List main components]
-- Specifications: [Technical specifications]
-- Tools required: [List tools needed]
 
----
 
 ## Features
 
 List the key features of your project:
-- Feature 1: [Description]
-- Feature 2: [Description]
-- Feature 3: [Description]
-- Feature 4: [Description]
+- Feature 1: Student registration with real-time validation, automatic eligibility assessment (age 18-65, weight 50kg+, medical conditions) and duplicate detection (Student ID, email, phone).
+- Feature 2: Admin dashboard with comprehensive donor  blood type and eligibility status plus real-time statistics (total donors, eligible count, ineligible count, stale records >30 days).
+- Feature 3: Donation request system allowing admins to send blood requests to eligible donors via WhatsApp with pre-formatted messages including hospital details, donation date, reporting time, and address, with students able to accept or decline with reasons.
+- Feature 4: Firebase Authentication for secure admin login and session-based admin tracking with real-time response updates.
 
----
 
 ## Implementation
 
@@ -66,17 +60,6 @@ List the key features of your project:
 [Run commands - e.g., npm start, python app.py]
 ```
 
-### For Hardware:
-
-#### Components Required
-[List all components needed with specifications]
-
-#### Circuit Setup
-[Explain how to set up the circuit]
-
----
-
-## Project Documentation
 
 ### For Software:
 
@@ -105,30 +88,6 @@ List the key features of your project:
 
 ---
 
-### For Hardware:
-
-#### Schematic & Circuit
-
-![Circuit](Add your circuit diagram here)
-*Add caption explaining connections*
-
-![Schematic](Add your schematic diagram here)
-*Add caption explaining the schematic*
-
-#### Build Photos
-
-![Team](Add photo of your team here)
-
-![Components](Add photo of your components here)
-*List out all components shown*
-
-![Build](Add photos of build process here)
-*Explain the build steps*
-
-![Final](Add photo of final product here)
-*Explain the final build*
-
----
 
 ## Additional Documentation
 
