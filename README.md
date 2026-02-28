@@ -157,7 +157,8 @@ Tablet (responsive design)
 ## Project Demo
 
 ### Video
-[Add your demo video link here - YouTube, Google Drive, etc.]
+https://drive.google.com/file/d/1eJy9sa2lGn-0mpG-VzUHxdEaLZZkzJz9/view?usp=drivesdk
+https://drive.google.com/file/d/1YOERVI_MVD-maBIU9nPiJQD4tg3S4MhI/view?usp=sharing
 
 Project Demo
 Live Website
