@@ -51,29 +51,22 @@ List the key features of your project:
 ### For Software:
 
 #### Installation
-```bash
-[Installation commands - e.g., npm install, pip install -r requirements.txt]
-```
+Clone the repository, configure Firebase credentials in HTML files, create admin accounts in Firebase Authentication, enable Firestore with donor and donationRequests collections, and deploy to any static hosting (Firebase Hosting, GitHub Pages, or web server).
+
 
 #### Run
-```bash
-[Run commands - e.g., npm start, python app.py]
-```
 
 
 ### For Software:
 
 #### Screenshots (Add at least 3)
+<img width="1893" height="877" alt="image" src="https://github.com/user-attachments/assets/179df57e-5c70-459f-bd6a-a7c2f7f5ff42" />
+Homepage shows hero section with "Every Drop Saves a Life" headline, key features overview, blood type badges, and CTAs for student registration and admin login.
 
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
-
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
-
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
-
+<img width="1880" height="857" alt="image" src="https://github.com/user-attachments/assets/d5b4d702-0ef4-40a4-b592-9ef9189d19de" />
+Registration page displays form fields for personal info and medical info with real-time validation feedback.
+<img width="1892" height="852" alt="image" src="https://github.com/user-attachments/assets/3a3de80e-b286-4aa8-859c-3c36c5e87749" />
+Admin dashboard shows donor statistics (total/eligible/ineligible/stale), search/filter toolbar, donor records table with blood type badges, eligibility status chips, request buttons, and donation requests tab with pending/accepted/declined statuses.
 #### Diagrams
 
 **System Architecture:**
