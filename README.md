@@ -33,7 +33,7 @@ VitalLink provides a centralized digital platform where students register as blo
 - Languages used: HTML, CSS, Javascript
 - Frameworks used: Firebase 
 - Libraries used: Firebase SDK
-- Tools used: VS Code, Git, Docker
+- Tools used: VS Code, Git/Github
 
 
 
@@ -131,76 +131,28 @@ Tracking Phase: All responses recorded in Firestore; admin can view status in re
 ---
 
 
-## Additional Documentation
-
-### For Web Projects with Backend:
-
-#### API Documentation
-
-**Base URL:** `https://api.yourproject.com`
-
-##### Endpoints
-
-**GET /api/endpoint**
-- **Description:** [What it does]
-- **Parameters:**
-  - `param1` (string): [Description]
-  - `param2` (integer): [Description]
-- **Response:**
-```json
-{
-  "status": "success",
-  "data": {}
-}
-```
-
-**POST /api/endpoint**
-- **Description:** [What it does]
-- **Request Body:**
-```json
-{
-  "field1": "value1",
-  "field2": "value2"
-}
-```
-- **Response:**
-```json
-{
-  "status": "success",
-  "message": "Operation completed"
-}
-```
-
-[Add more endpoints as needed...]
-
----
-
 ### For Mobile Apps:
 
 #### App Flow Diagram
 
-![App Flow](docs/app-flow.png)
-*Explain the user flow through your application*
+VitalLink is a web-only application 
+Student → Register → Success 
+Admin → Login (admin-login.html) → Dashboard → 
+Admin → Select donor → Send request → 
+Student → Receive WhatsApp link → Click link → 
+Student → Respond → Accept/Decline → 
+Admin → See status update in dashboard
 
-#### Installation Guide
+Installation Guide
+VitalLink is web-only 
+Access the application:
+After deployment to GitHub Pages
+Open browser and visit: https://USERNAME.github.io/vitallink
 
-
-
-**Building from Source:**
-```bash
-# For Android
-flutter build apk
-# or
-./gradlew assembleDebug
-
-# For iOS
-flutter build ios
-# or
-xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug
-```
-
----
-
+Supported on all devices:
+Desktop 
+Mobile 
+Tablet (responsive design)
 
 ## Project Demo
 
@@ -255,9 +207,5 @@ Transparency Note: AI was used extensively for development but all logic, archit
 
 - Arundhathi C and Aleena leen: Idea Generation,Firebase Configuration,Frontend development,API integration
 
-
-## License
-
-This project is licensed under the [LICENSE_NAME] License - see the [LICENSE](LICENSE) file for details.
 
 Made with ❤️ at TinkerHub
