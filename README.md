@@ -13,7 +13,7 @@
 - Member 2: Arundhathi C - College of engineering Trivandrum 
 
 ### Hosted Project Link
-[mention your project hosted link here]
+https://arundhathi06.github.io/VitalLink/
 
 ### Project Description
 VitalLink is a web based blood donor management sysytem that enables college students to register as donors with their blood type health informations, while the admin can access secure dashboard to search filter and manage donor records by blood type and eligibility status for coordinations during blood requirements.
@@ -33,7 +33,7 @@ VitalLink provides a centralized digital platform where students register as blo
 - Languages used: HTML, CSS, Javascript
 - Frameworks used: Firebase 
 - Libraries used: Firebase SDK
-- Tools used: VS Code, Git/Github
+- Tools used: VS Code, Git/Github, Firebase
 
 
 
@@ -173,9 +173,9 @@ Key Features Demonstrated:
  Student accept/decline responses with reasons
  Real-time status updates in admin dashboard
 
-Demo Account Credentials:
-Email: admin@vitallink.com
-Password: [Contact project maintainer]
+Admin Account Credentials:
+Email: arundhathicherayi@gmail.com
+Password: Admin@123
 
 
 
@@ -183,7 +183,7 @@ Password: [Contact project maintainer]
 
 If you used AI tools during development, document them here for transparency:
 
-**Tool Used:** e.g. Gemini, ChatGPT, Claude
+**Tool Used:** e.g. Gemini, Claude
 
 **Purpose:** [What you used it for]
 - Development assistance
