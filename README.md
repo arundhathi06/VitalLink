@@ -23,7 +23,7 @@ college campus lack a centralized system to identify and mobilize eligible blood
 
 ### The Solution
 VitalLink - a campus blood donor network.
-VitalLink provides a centralized digital platform where students register as blood donors by providing their student and medical details with colllege id as identification.The system automatically assesses eligibility based on medical criteria and stores all data securely.
+VitalLink provides a centralized digital platform where students register as blood donors by providing their student and medical details with colllege id as identification.The system automatically assesses eligibility based on medical criteria and stores all data securely.When there is a blood requirement, administrators can instantly sort and filter donors by blood type and eligibility status, then send donation requests directly to eligible students via their registered mobile numbers. Students can respond to requests by accepting or declining with a reason provided, creating a transparent and efficient coordination system can enable efficient responses and ensures student consent before mobilization.
 
 ## Technical Details
 
