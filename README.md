@@ -2,36 +2,35 @@
   <img src="./img.png" alt="Project Banner" width="100%">
 </p>
 
-# [Project Name] 🎯
+# VitalLink 🎯
 
 ## Basic Details
 
-### Team Name: [Name]
+### Team Name: Duo Nova
 
 ### Team Members
-- Member 1: [Name] - [College]
-- Member 2: [Name] - [College]
+- Member 1: Aleena Leen - College of engineering Trivandrum
+- Member 2: Arundhathi C - College of engineering Trivandrum 
 
 ### Hosted Project Link
 [mention your project hosted link here]
 
 ### Project Description
-[2-3 lines about what your project does]
+VitalLink is a web based blood donor management sysytem that enables college students to register as donors with their blood type health informations, while the admin can access secure dashboard to search filter and manage donor records by blood type and eligibility status for coordinations during blood requirements.
 
 ### The Problem statement
-[What problem are you solving?]
+college campus lack a centralized system to identify and mobilize eligible blood donors during medical requirements resulting in inadequte blood supply coordination.
 
 ### The Solution
-[How are you solving it?]
-
----
+VitalLink - a campus blood donor network.
+VitalLink provides a centralized digital platform where students register as blood donors by providing their student and medical details with colllege id as identification.The system automatically assesses eligibility based on medical criteria and stores all data securely.
 
 ## Technical Details
 
 ### Technologies/Components Used
 
 **For Software:**
-- Languages used: [e.g., JavaScript, Python, Java]
+- Languages used: HTML, CSS, Javascript
 - Frameworks used: [e.g., React, Django, Spring Boot]
 - Libraries used: [e.g., axios, pandas, JUnit]
 - Tools used: [e.g., VS Code, Git, Docker]
