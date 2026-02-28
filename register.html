@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — VitalLink</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{--black:#0a0505;--surface:#120b0b;--surface2:#1e1010;--crimson:#c0392b;--crimson-bright:#e74c3c;--crimson-dim:#8b1a1a;--cream:#f5ede8;--muted:#9a7f7f;--border:rgba(192,57,43,0.2);--error:#ff6b6b;--green:#4ade80;}
+    body{background:var(--black);color:var(--cream);font-family:'Outfit',sans-serif;min-height:100vh;padding:2rem 1rem;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(192,57,43,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(192,57,43,0.05) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;}
+    .back-link{display:inline-flex;align-items:center;gap:0.4rem;color:var(--muted);text-decoration:none;font-size:0.88rem;margin-bottom:2rem;transition:color 0.2s;}
+    .back-link:hover{color:var(--cream);}
+    .page-header{text-align:center;margin-bottom:2.5rem;}
+    .logo-wrap{display:inline-flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;}
+    .logo-dot{width:40px;height:40px;background:var(--crimson);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 0 20px rgba(192,57,43,0.4);}
+    .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;}
+    .logo-name span{color:var(--crimson-bright);}
+    h1{font-family:'Cormorant Garamond',serif;font-size:2.2rem;font-weight:700;margin-bottom:0.5rem;}
+    .subtitle{color:var(--muted);font-weight:300;font-size:0.95rem;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2.5rem;max-width:680px;margin:0 auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+    .form-grid .full{grid-column:1/-1;}
+    .field{display:flex;flex-direction:column;gap:0.4rem;}
+    .field label{font-size:0.8rem;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+    .field input,.field select{background:rgba(255,255,255,0.04);border:1.5px solid var(--border);border-radius:10px;padding:0.75rem 1rem;color:var(--cream);font-family:'Outfit',sans-serif;font-size:0.92rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+    .field input:focus,.field select:focus{border-color:var(--crimson);box-shadow:0 0 0 3px rgba(192,57,43,0.15);}
+    .field input::placeholder{color:rgba(154,127,127,0.5);}
+    .field select option{background:var(--surface2);color:var(--cream);}
+    .field .err{font-size:0.76rem;color:var(--error);display:none;margin-top:0.1rem;}
+    .field.error input,.field.error select{border-color:var(--error)!important;box-shadow:0 0 0 3px rgba(255,107,107,0.1)!important;}
+    .field.error .err{display:block;}
+    .section-divider{grid-column:1/-1;display:flex;align-items:center;gap:1rem;margin:0.5rem 0;}
+    .section-divider span{font-size:0.75rem;color:var(--crimson-bright);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap;}
+    .section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+    .eligibility-note{grid-column:1/-1;background:rgba(192,57,43,0.08);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;font-size:0.84rem;color:var(--muted);line-height:1.7;}
+    .eligibility-note strong{color:var(--crimson-bright);}
+    #formError{display:none;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:10px;padding:0.8rem 1.1rem;font-size:0.88rem;color:var(--error);margin-bottom:1.2rem;}
+    .btn-submit{width:100%;padding:1rem;background:linear-gradient(135deg,var(--crimson),var(--crimson-dim));color:var(--cream);font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;margin-top:1.2rem;box-shadow:0 4px 20px rgba(192,57,43,0.35);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:0.5rem;}
+    .btn-submit:hover:not(:disabled){background:linear-gradient(135deg,var(--crimson-bright),var(--crimson));transform:translateY(-2px);}
+    .btn-submit:disabled{opacity:0.6;cursor:not-allowed;}
+    #successMsg{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.2rem;padding:3rem 2rem;}
+    .success-icon{width:64px;height:64px;background:rgba(74,222,128,0.15);border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:var(--green);}
+    #successMsg h2{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;}
+    #successMsg p{color:var(--muted);font-weight:300;}
+    .btn-home{display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.8rem;background:var(--crimson);color:var(--cream);border-radius:10px;text-decoration:none;font-weight:500;transition:background 0.2s;}
+    .btn-home:hover{background:var(--crimson-bright);}
+    @media(max-width:560px){.form-grid{grid-template-columns:1fr;}.form-grid .full{grid-column:1;}}
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="back-link">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  Back to Home
+</a>
+
+<div class="page-header">
+  <div class="logo-wrap">
+    <div class="logo-dot">🩸</div>
+    <span class="logo-name">Vital<span>Link</span></span>
+  </div>
+  <h1>Donor Registration</h1>
+  <p class="subtitle">Fill in your details to join the campus blood donor network.</p>
+</div>
+
+<div class="card">
+  <div id="formWrap">
+    <div id="formError"></div>
+    <form id="regForm" novalidate>
+      <div class="form-grid">
+
+        <div class="section-divider"><span>Personal Information</span></div>
+
+        <div class="field" id="f-name">
+          <label>Full Name</label>
+          <input type="text" id="name" placeholder="e.g. Arjun Nair"/>
+          <span class="err" id="err-name"></span>
+        </div>
+        <div class="field" id="f-studentId">
+          <label>Student ID</label>
+          <input type="text" id="studentId" placeholder="e.g. KU2024001"/>
+          <span class="err" id="err-studentId"></span>
+        </div>
+        <div class="field" id="f-email">
+          <label>Email Address</label>
+          <input type="text" id="email" placeholder="you@college.edu"/>
+          <span class="err" id="err-email"></span>
+        </div>
+        <div class="field" id="f-phone">
+          <label>Phone Number</label>
+          <input type="text" id="phone" placeholder="e.g. 9876543210"/>
+          <span class="err" id="err-phone"></span>
+        </div>
+        <div class="field full" id="f-department">
+          <label>Department / Course</label>
+          <input type="text" id="department" placeholder="e.g. B.Tech Computer Science"/>
+          <span class="err" id="err-department"></span>
+        </div>
+
+        <div class="section-divider"><span>Medical Information</span></div>
+
+        <div class="field" id="f-bloodType">
+          <label>Blood Type</label>
+          <select id="bloodType">
+            <option value="">Select blood type</option>
+            <option>A+</option><option>A&#x2212;</option>
+            <option>B+</option><option>B&#x2212;</option>
+            <option>AB+</option><option>AB&#x2212;</option>
+            <option>O+</option><option>O&#x2212;</option>
+          </select>
+          <span class="err" id="err-bloodType"></span>
+        </div>
+        <div class="field" id="f-age">
+          <label>Age</label>
+          <input type="number" id="age" placeholder="18 to 65"/>
+          <span class="err" id="err-age"></span>
+        </div>
+        <div class="field" id="f-weight">
+          <label>Weight (kg)</label>
+          <input type="number" id="weight" placeholder="Min. 50 kg" step="0.1"/>
+          <span class="err" id="err-weight"></span>
+        </div>
+        <div class="field" id="f-lastDonated">
+          <label>Last Donation Date <small style="text-transform:none;font-size:0.75em;">(leave blank if never)</small></label>
+          <input type="date" id="lastDonated"/>
+        </div>
+        <div class="field full" id="f-medicalCondition">
+          <label>Medical Condition (if any)</label>
+          <select id="medicalCondition">
+            <option value="none">None - I am healthy</option>
+            <option value="diabetes">Diabetes</option>
+            <option value="hypertension">Hypertension / Heart condition</option>
+            <option value="hiv">HIV / Hepatitis</option>
+            <option value="cancer">Cancer (active)</option>
+            <option value="pregnancy">Pregnancy / Recent childbirth</option>
+            <option value="surgery_recent">Surgery in last 6 months</option>
+            <option value="medication">On regular medication</option>
+            <option value="other">Other condition</option>
+          </select>
+        </div>
+
+        <div class="eligibility-note full">
+          <strong>Eligibility criteria:</strong> You must be 18-65 years old, weigh at least 50 kg, have no disqualifying medical conditions, and must not have donated blood in the last <strong>90 days</strong>.
+        </div>
+
+      </div>
+      <button type="submit" class="btn-submit" id="submitBtn">
+        Submit Registration
+      </button>
+    </form>
+  </div>
+
+  <div id="successMsg">
+    <div class="success-icon">&#x2713;</div>
+    <h2>You're registered!</h2>
+    <p>Thank you for joining VitalLink. Your details have been securely saved.</p>
+    <a href="index.html" class="btn-home">Back to Home</a>
+  </div>
+</div>
+
+<!-- Script is here at the BOTTOM so all DOM elements exist when it runs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+      apiKey: "AIzaSyC--ZBeDXNvgDGbXdYquW6eiVRZ1xo_zxM",
+  authDomain: "vitallink-2dddd.firebaseapp.com",
+  projectId: "vitallink-2dddd",
+  storageBucket: "vitallink-2dddd.appspot.com",
+  messagingSenderId: "18565970161",
+  appId: "1:18565970161:web:8c946d8b981c4b64949150",
+  measurementId: "G-JJ6FJ8B6M3"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  function g(id) { return document.getElementById(id); }
+  function v(id) { const el = g(id); return el ? el.value : ''; }
+
+  function setErr(fid, msg) {
+    const w = g('f-' + fid);
+    const e = g('err-' + fid);
+    if (w) w.classList.add('error');
+    if (e) e.textContent = msg;
+  }
+
+  function clrAll() {
+    ['name','studentId','email','phone','department','bloodType','age','weight'].forEach(function(fid) {
+      const w = g('f-' + fid);
+      if (w) w.classList.remove('error');
+    });
+  }
+
+  function showBanner(msg) {
+    const el = g('formError');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function validate() {
+    clrAll();
+    var ok = true;
+
+    if (v('name').trim().length < 2) {
+      setErr('name', 'Please enter your full name.'); ok = false;
+    }
+
+    if (v('studentId').trim().length < 1) {
+      setErr('studentId', 'Please enter your student ID.'); ok = false;
+    }
+
+    var email = v('email').trim();
+    if (!email) {
+      setErr('email', 'Please enter your email address.'); ok = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)) {
+      setErr('email', 'Enter a valid email e.g. name@college.edu'); ok = false;
+    }
+
+    var digits = v('phone').replace(/\D/g, '');
+    if (!v('phone').trim()) {
+      setErr('phone', 'Please enter your phone number.'); ok = false;
+    } else if (digits.length < 10) {
+      setErr('phone', 'Phone must have at least 10 digits.'); ok = false;
+    }
+
+    if (v('department').trim().length < 2) {
+      setErr('department', 'Please enter your department.'); ok = false;
+    }
+
+    if (!v('bloodType')) {
+      setErr('bloodType', 'Please select your blood type.'); ok = false;
+    }
+
+    var age = Number(v('age'));
+    if (!v('age').trim()) {
+      setErr('age', 'Please enter your age.'); ok = false;
+    } else if (age < 18 || age > 65) {
+      setErr('age', 'Age must be between 18 and 65.'); ok = false;
+    }
+
+    var wt = Number(v('weight'));
+    if (!v('weight').trim()) {
+      setErr('weight', 'Please enter your weight.'); ok = false;
+    } else if (wt < 50) {
+      setErr('weight', 'Weight must be at least 50 kg.'); ok = false;
+    }
+
+    return ok;
+  }
+
+  // Attach listener — form definitely exists here since script is at bottom of body
+  var form = g('regForm');
+  if (!form) { console.error('CRITICAL: regForm not found'); }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    g('formError').style.display = 'none';
+
+    // STEP 1: validate — stop immediately if anything fails
+    if (!validate()) return;
+
+    var btn = g('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+
+    var name       = v('name').trim();
+    var studentId  = v('studentId').trim();
+    var email      = v('email').trim();
+    var phone      = v('phone').trim();
+    var department = v('department').trim();
+    var bloodType  = v('bloodType');
+    var age        = Number(v('age'));
+    var weight     = Number(v('weight'));
+    var lastDonStr = v('lastDonated');
+    var condition  = v('medicalCondition');
+    var lastDonDate = lastDonStr ? new Date(lastDonStr) : null;
+    var now = new Date();
+
+    // STEP 2: eligibility
+    var eligible = true;
+    var ineligibilityReason = '';
+    if (age < 18 || age > 65) {
+      eligible = false; ineligibilityReason = 'Age ' + age + ' outside range (18-65)';
+    } else if (weight < 50) {
+      eligible = false; ineligibilityReason = 'Weight ' + weight + 'kg below minimum (50kg)';
+    } else if (condition && condition !== 'none') {
+      eligible = false; ineligibilityReason = 'Medical condition: ' + condition;
+    } else if (lastDonDate) {
+      var days = Math.floor((now - lastDonDate) / 86400000);
+      if (days < 90) { eligible = false; ineligibilityReason = 'Donated ' + days + ' days ago (need 90)'; }
+    }
+
+    try {
+      // STEP 3: duplicate checks
+      btn.textContent = 'Checking duplicates...';
+
+      var idSnap = await getDocs(query(collection(db, 'donors'), where('studentId', '==', studentId)));
+      if (!idSnap.empty) {
+        showBanner('This Student ID is already registered.');
+        btn.disabled = false; btn.textContent = 'Submit Registration'; return;
+      }
+
+      var emSnap = await getDocs(query(collection(db, 'donors'), where('email', '==', email)));
+      if (!emSnap.empty) {
+        showBanner('This email address is already registered.');
+        btn.disabled = false; btn.textContent = 'Submit Registration'; return;
+      }
+
+      var phSnap = await getDocs(query(collection(db, 'donors'), where('phone', '==', phone)));
+      if (!phSnap.empty) {
+        showBanner('This phone number is already registered.');
+        btn.disabled = false; btn.textContent = 'Submit Registration'; return;
+      }
+
+      // STEP 4: save to Firestore
+      btn.textContent = 'Submitting...';
+      await addDoc(collection(db, 'donors'), {
+        name: name,
+        studentId: studentId,
+        email: email,
+        phone: phone,
+        department: department,
+        bloodType: bloodType,
+        age: age,
+        weight: weight,
+        lastDonated: lastDonDate ? lastDonDate.toISOString() : null,
+        medicalCondition: condition,
+        eligible: eligible,
+        ineligibilityReason: ineligibilityReason,
+        registeredAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+      });
+
+      // STEP 5: show success only after all above passed
+      g('formWrap').style.display = 'none';
+      g('successMsg').style.display = 'flex';
+
+    } catch(err) {
+      showBanner('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Submit Registration';
+    }
+  });
+</script>
+
+</body>
+</html>

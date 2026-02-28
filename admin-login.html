@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login — VitalLink</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --black:#0a0505;--surface:#120b0b;--surface2:#1e1010;
+      --crimson:#c0392b;--crimson-bright:#e74c3c;--crimson-dim:#8b1a1a;
+      --cream:#f5ede8;--muted:#9a7f7f;--border:rgba(192,57,43,0.2);--error:#ff6b6b;
+    }
+    body{background:var(--black);color:var(--cream);font-family:'Outfit',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;position:relative;overflow:hidden;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(192,57,43,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(192,57,43,0.05) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;}
+    body::after{content:'';position:fixed;top:-30%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(192,57,43,0.1) 0%,transparent 65%);pointer-events:none;}
+
+    .back-link{position:fixed;top:1.5rem;left:1.8rem;display:flex;align-items:center;gap:0.4rem;color:var(--muted);text-decoration:none;font-size:0.88rem;transition:color 0.2s;z-index:10;}
+    .back-link:hover{color:var(--cream);}
+
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:3rem 2.5rem;width:100%;max-width:440px;position:relative;z-index:1;box-shadow:0 30px 80px rgba(0,0,0,0.5);animation:fadeUp 0.7s ease both;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+
+    .card-header{text-align:center;margin-bottom:2.2rem;}
+    .logo-wrap{display:inline-flex;align-items:center;gap:0.6rem;margin-bottom:1.2rem;}
+    .logo-dot{width:44px;height:44px;background:linear-gradient(135deg,var(--crimson),var(--crimson-dim));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 0 24px rgba(192,57,43,0.4);}
+    .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:700;}
+    .logo-name span{color:var(--crimson-bright);}
+    h1{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;margin-bottom:0.3rem;}
+    .card-sub{font-size:0.88rem;color:var(--muted);font-weight:300;}
+
+    .field{display:flex;flex-direction:column;gap:0.45rem;margin-bottom:1.1rem;}
+    .field label{font-size:0.8rem;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+    .input-wrap{position:relative;}
+    .input-wrap input{width:100%;background:rgba(255,255,255,0.04);border:1.5px solid var(--border);border-radius:10px;padding:0.8rem 2.8rem 0.8rem 1rem;color:var(--cream);font-family:'Outfit',sans-serif;font-size:0.94rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+    .input-wrap input:focus{border-color:var(--crimson);box-shadow:0 0 0 3px rgba(192,57,43,0.15);}
+    .input-wrap input::placeholder{color:rgba(154,127,127,0.5);}
+    .toggle-pw{position:absolute;right:0.9rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);display:flex;align-items:center;transition:color 0.2s;}
+    .toggle-pw:hover{color:var(--cream);}
+
+    #loginErr{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:8px;padding:0.7rem 1rem;font-size:0.85rem;color:var(--error);display:none;margin-bottom:1rem;}
+
+    .btn-login{width:100%;padding:0.95rem;background:linear-gradient(135deg,var(--crimson),var(--crimson-dim));color:var(--cream);font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 20px rgba(192,57,43,0.35);transition:all 0.2s;}
+    .btn-login:hover:not(:disabled){background:linear-gradient(135deg,var(--crimson-bright),var(--crimson));transform:translateY(-2px);box-shadow:0 8px 28px rgba(192,57,43,0.5);}
+    .btn-login:disabled{opacity:0.6;cursor:not-allowed;}
+
+    .admin-note{margin-top:1.5rem;text-align:center;font-size:0.8rem;color:var(--muted);background:rgba(192,57,43,0.06);border:1px solid var(--border);border-radius:8px;padding:0.7rem;}
+    .admin-note strong{color:var(--crimson-bright);}
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="back-link">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  Back to Home
+</a>
+
+<div class="login-card">
+  <div class="card-header">
+    <div class="logo-wrap">
+      <div class="logo-dot">🩸</div>
+      <span class="logo-name">Vital<span>Link</span></span>
+    </div>
+    <h1>Admin Access</h1>
+    <p class="card-sub">Sign in to manage donor records</p>
+  </div>
+
+  <form id="loginForm" novalidate>
+    <div id="loginErr"></div>
+
+    <div class="field">
+      <label>Full Name</label>
+      <div class="input-wrap">
+        <input type="text" id="adminName" placeholder="e.g. Dr. Rajan Kumar" autocomplete="name" required/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Admin Email</label>
+      <div class="input-wrap">
+        <input type="email" id="adminEmail" placeholder="admin@campus.edu" autocomplete="email" required/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <div class="input-wrap">
+        <input type="password" id="adminPassword" placeholder="Your password" autocomplete="current-password" required/>
+        <button type="button" class="toggle-pw" onclick="togglePw()" tabindex="-1">
+          <svg id="eyeIcon" width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-login" id="loginBtn">Sign In →</button>
+  </form>
+
+  <div class="admin-note">
+    <strong>Admin only.</strong> This portal is restricted. Unauthorized access attempts are logged.
+  </div>
+</div>
+
+<script>
+  function togglePw() {
+    const inp = document.getElementById('adminPassword');
+    const icon = document.getElementById('eyeIcon');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.innerHTML = `<path d="M2 2l12 12M6.5 6.7A3 3 0 0111.3 11M4.2 4.5C2.5 5.9 1 8 1 8s2.5 5 7 5c1.3 0 2.5-.4 3.5-1M8 5a7 7 0 013.8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`;
+    } else {
+      inp.type = 'password';
+      icon.innerHTML = `<path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>`;
+    }
+  }
+</script>
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC--ZBeDXNvgDGbXdYquW6eiVRZ1xo_zxM",
+  authDomain: "vitallink-2dddd.firebaseapp.com",
+  projectId: "vitallink-2dddd",
+  storageBucket: "vitallink-2dddd.appspot.com",
+  messagingSenderId: "18565970161",
+  appId: "1:18565970161:web:8c946d8b981c4b64949150",
+  measurementId: "G-JJ6FJ8B6M3"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const btn    = document.getElementById('loginBtn');
+    const errEl  = document.getElementById('loginErr');
+    const name   = document.getElementById('adminName').value.trim();
+    const email  = document.getElementById('adminEmail').value.trim();
+    const password = document.getElementById('adminPassword').value;
+
+    errEl.style.display = 'none';
+
+    if (!name) {
+      errEl.textContent = 'Please enter your name.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!email) {
+      errEl.textContent = 'Please enter your email.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!password) {
+      errEl.textContent = 'Please enter your password.';
+      errEl.style.display = 'block'; return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      console.log('Attempting login with:', email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Login success:', userCredential.user.email);
+      sessionStorage.setItem('adminName', name);
+      console.log('Redirecting to admin-dashboard.html...');
+      window.location.replace('admin-dashboard.html');
+    } catch (err) {
+      console.error('Login error code:', err.code);
+      console.error('Login error message:', err.message);
+      errEl.textContent = (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found')
+        ? 'Invalid email or password. Please try again.'
+        : 'Login failed: ' + err.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign In →';
+    }
+  });
+</script>
+</body>
+</html>

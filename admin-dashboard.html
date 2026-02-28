@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard — VitalLink</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC--ZBeDXNvgDGbXdYquW6eiVRZ1xo_zxM",
+  authDomain: "vitallink-2dddd.firebaseapp.com",
+  projectId: "vitallink-2dddd",
+  storageBucket: "vitallink-2dddd.appspot.com",
+  messagingSenderId: "18565970161",
+  appId: "1:18565970161:web:8c946d8b981c4b64949150",
+  measurementId: "G-JJ6FJ8B6M3"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    import {
+      collection, getDocs, doc,
+      updateDoc, deleteDoc, addDoc, serverTimestamp, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    let allDonors = [];
+    let filteredDonors = [];
+    let allRequests = [];
+    let editingId = null;
+    let requestingDonorId = null;
+
+    // Auth guard — only redirect after Firebase confirms no user
+    let authResolved = false;
+    onAuthStateChanged(auth, user => {
+      console.log('Auth state changed:', user ? user.email : 'no user');
+      if (user) {
+        authResolved = true;
+        const savedName = sessionStorage.getItem('adminName');
+        document.getElementById('adminEmail').textContent = savedName ? '👤 ' + savedName : user.email;
+        loadAll();
+      } else if (authResolved) {
+        // Only redirect if we had a user before and they signed out
+        window.location.replace('admin-login.html');
+      } else {
+        // First load — give Firebase 2 seconds to restore session before redirecting
+        setTimeout(() => {
+          if (!authResolved) {
+            window.location.replace('admin-login.html');
+          }
+        }, 2000);
+      }
+    });
+
+    async function loadAll() {
+      await Promise.all([loadDonors(), loadRequests()]);
+    }
+
+    async function loadDonors() {
+      document.getElementById('loadingState').style.display = 'flex';
+      document.getElementById('tableWrap').style.display = 'none';
+      try {
+        const q = query(collection(db, 'donors'), orderBy('registeredAt', 'desc'));
+        const snap = await getDocs(q);
+        allDonors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        filteredDonors = [...allDonors];
+        renderStats();
+        renderTable();
+      } catch (e) {
+        document.getElementById('loadingState').innerHTML = `<p style="color:var(--error)">Error: ${e.message}</p>`;
+      }
+    }
+
+    async function loadRequests() {
+      try {
+        const q = query(collection(db, 'donationRequests'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        allRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderRequestsPanel();
+        updateReqBadge();
+      } catch(e) { console.error('Requests error:', e); }
+    }
+
+    function updateReqBadge() {
+      const pending = allRequests.filter(r => r.status === 'pending').length;
+      const b = document.getElementById('reqBadge');
+      b.textContent = pending;
+      b.style.display = pending > 0 ? 'inline-flex' : 'none';
+    }
+
+    function getLatestRequest(donorId) {
+      const reqs = allRequests.filter(r => r.donorId === donorId);
+      if (!reqs.length) return null;
+      return reqs.sort((a,b) => {
+        const ta = a.createdAt?.toDate?.()?.getTime() || 0;
+        const tb = b.createdAt?.toDate?.()?.getTime() || 0;
+        return tb - ta;
+      })[0];
+    }
+
+    function renderStats() {
+      const total = allDonors.length;
+      const eligible = allDonors.filter(d => d.eligible).length;
+      const ineligible = allDonors.filter(d => !d.eligible).length;
+      const now = new Date();
+      const stale = allDonors.filter(d => {
+        if (!d.lastUpdated) return true;
+        const lu = d.lastUpdated.toDate ? d.lastUpdated.toDate() : new Date(d.lastUpdated);
+        return (now - lu) > 30*24*60*60*1000;
+      }).length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statEligible').textContent = eligible;
+      document.getElementById('statIneligible').textContent = ineligible;
+      document.getElementById('statStale').textContent = stale;
+    }
+
+    function getAlerts(donor) {
+      const alerts = [];
+      const now = new Date();
+      if (donor.lastUpdated) {
+        const lu = donor.lastUpdated.toDate ? donor.lastUpdated.toDate() : new Date(donor.lastUpdated);
+        const days = Math.floor((now - lu)/(1000*60*60*24));
+        if (days > 30) alerts.push({ type:'stale', msg:`Not updated in ${days} days` });
+      } else {
+        alerts.push({ type:'stale', msg:'No update date recorded' });
+      }
+      if (!donor.eligible) alerts.push({ type:'ineligible', msg: donor.ineligibilityReason || 'Marked ineligible' });
+      return alerts;
+    }
+
+    function reqStatusHTML(req) {
+      if (!req) return `<span style="color:var(--muted);font-size:0.8rem">—</span>`;
+      const statusMap = {
+        pending:  `<span class="req-chip req-pending">⏳ Pending</span>`,
+        accepted: `<span class="req-chip req-accepted">✅ Accepted</span>`,
+        declined: `<span class="req-chip req-declined">❌ Declined</span>`,
+      };
+      let html = statusMap[req.status] || '';
+      if (req.status === 'declined' && req.declineReason) {
+        html += `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem;max-width:140px">${req.declineReason}</div>`;
+      }
+      if (req.status === 'accepted') {
+        html += `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${req.donationDate}</div>`;
+      }
+      return html;
+    }
+
+    function renderTable() {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('tableWrap').style.display = 'block';
+      const tbody = document.getElementById('donorBody');
+      tbody.innerHTML = '';
+
+      if (filteredDonors.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--muted)">No donors found.</td></tr>`;
+        document.getElementById('resultCount').textContent = '0 records';
+        return;
+      }
+
+      document.getElementById('resultCount').textContent = `${filteredDonors.length} record${filteredDonors.length!==1?'s':''}`;
+
+      filteredDonors.forEach(donor => {
+        const alerts = getAlerts(donor);
+        const alertIcons = alerts.map(a =>
+          `<span class="alert-chip" title="${a.msg}">${a.type==='stale'?'⏰':'🚫'}</span>`
+        ).join('');
+
+        const lastUpdated = donor.lastUpdated
+          ? (donor.lastUpdated.toDate ? donor.lastUpdated.toDate() : new Date(donor.lastUpdated)).toLocaleDateString('en-IN')
+          : '—';
+
+        const req = getLatestRequest(donor.id);
+        const canRequest = donor.eligible && (!req || req.status === 'declined');
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div class="donor-name">${donor.name}</div>
+            <div class="donor-meta">${donor.studentId} · ${donor.department}</div>
+          </td>
+          <td><span class="blood-tag">${donor.bloodType}</span></td>
+          <td>${donor.email}<br/><span class="donor-meta">${donor.phone}</span></td>
+          <td style="text-align:center">${donor.age}y / ${donor.weight}kg</td>
+          <td style="text-align:center">
+            <span class="status-chip ${donor.eligible?'eligible':'ineligible'}">
+              ${donor.eligible?'✓ Eligible':'✗ Ineligible'}
+            </span>
+          </td>
+          <td>${alertIcons||'<span style="color:var(--muted);font-size:0.8rem">—</span>'}</td>
+          <td>${reqStatusHTML(req)}</td>
+          <td style="font-size:0.82rem;color:var(--muted)">${lastUpdated}</td>
+          <td>
+            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+              ${canRequest ? `<button class="action-btn req-btn" onclick="openRequestModal('${donor.id}')">📨 Request</button>` : ''}
+              <button class="action-btn edit-btn" onclick="openEdit('${donor.id}')">Edit</button>
+              <button class="action-btn delete-btn" onclick="deleteDonor('${donor.id}','${donor.name.replace(/'/g,"\\'")}')">Del</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderRequestsPanel() {
+      const container = document.getElementById('requestsList');
+      if (!allRequests.length) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:4rem 2rem;color:var(--muted);">
+            <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
+            <div style="font-size:1rem;margin-bottom:0.4rem;color:var(--cream);">No requests sent yet</div>
+            <div style="font-size:0.85rem;">Go to the Donors tab and click 📨 Request on any eligible donor.</div>
+          </div>`;
+        return;
+      }
+      container.innerHTML = allRequests.map(req => {
+        const statusMap = { pending:'req-pending', accepted:'req-accepted', declined:'req-declined' };
+        const icon = { pending:'⏳', accepted:'✅', declined:'❌' };
+        const statusLabel = { pending:'Pending', accepted:'Accepted', declined:'Declined' };
+        const createdAt = req.createdAt?.toDate
+          ? req.createdAt.toDate().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})
+          : '—';
+        return `
+          <div class="req-card">
+            <div class="req-card-top">
+              <div>
+                <div class="req-donor-name">${req.donorName}</div>
+                <div class="req-donor-meta">${req.bloodType} · ${req.donorEmail}</div>
+              </div>
+              <span class="req-chip ${statusMap[req.status] || 'req-pending'}">
+                ${icon[req.status] || '⏳'} ${statusLabel[req.status] || 'Pending'}
+              </span>
+            </div>
+            <div class="req-details">
+              <span>📅 Donation date: <strong>${req.donationDate || '—'}</strong></span>
+              <span>🏥 ${req.hospitalName || '—'}</span>
+              <span>📍 ${req.hospitalAddress || '—'}</span>
+              ${req.hospitalPhone ? `<span>📞 ${req.hospitalPhone}</span>` : ''}
+              ${req.reportingTime ? `<span>⏰ ${req.reportingTime}</span>` : ''}
+              <span style="color:var(--muted);font-size:0.78rem">Sent: ${createdAt}</span>
+            </div>
+            ${req.notes ? `<div style="margin-top:0.7rem;font-size:0.83rem;color:var(--muted);background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem;">📝 ${req.notes}</div>` : ''}
+            ${req.status==='declined' && req.declineReason
+              ? `<div class="req-reason">❌ Decline reason: <strong>${req.declineReason}</strong>${req.declineNote ? ` — "${req.declineNote}"` : ''}</div>`
+              : ''}
+            ${req.status==='accepted'
+              ? `<div class="req-reason accepted-note">✅ Donor has confirmed attendance</div>`
+              : ''}
+            ${req.status==='pending'
+              ? `<div style="margin-top:0.8rem;font-size:0.8rem;color:var(--amber);">⏳ Awaiting donor response</div>`
+              : ''}
+          </div>`;
+      }).join('');
+    }
+
+    // ── REQUEST MODAL ──
+    window.openRequestModal = function(donorId) {
+      requestingDonorId = donorId;
+      const donor = allDonors.find(d => d.id === donorId);
+      document.getElementById('req-donorInfo').textContent = `${donor.name} · ${donor.bloodType} · ${donor.email}`;
+      document.getElementById('req-date').value = '';
+      document.getElementById('req-hospitalName').value = '';
+      document.getElementById('req-hospitalAddress').value = '';
+      document.getElementById('req-hospitalPhone').value = '';
+      document.getElementById('req-notes').value = '';
+      document.getElementById('reqErr').style.display = 'none';
+      document.getElementById('requestModal').style.display = 'flex';
+    };
+
+    window.closeRequestModal = function() {
+      document.getElementById('requestModal').style.display = 'none';
+      requestingDonorId = null;
+    };
+
+    window.sendRequest = async function() {
+      const btn = document.getElementById('sendReqBtn');
+      const errEl = document.getElementById('reqErr');
+      const date = document.getElementById('req-date').value;
+      const hospitalName = document.getElementById('req-hospitalName').value.trim();
+      const hospitalAddress = document.getElementById('req-hospitalAddress').value.trim();
+      const hospitalPhone = document.getElementById('req-hospitalPhone').value.trim();
+      const reportingTime = document.getElementById('req-reportingTime').value;
+      const notes = document.getElementById('req-notes').value.trim();
+
+      if (!date || !hospitalName || !hospitalAddress) {
+        errEl.textContent = 'Please fill in date, hospital name and address.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Saving…';
+      errEl.style.display = 'none';
+
+      const donor = allDonors.find(d => d.id === requestingDonorId);
+
+      try {
+        // 1. Save to Firestore
+        const docRef = await addDoc(collection(db, 'donationRequests'), {
+          donorId: requestingDonorId,
+          donorName: donor.name,
+          donorEmail: donor.email,
+          bloodType: donor.bloodType,
+          donationDate: date,
+          hospitalName,
+          hospitalAddress,
+          hospitalPhone,
+          reportingTime,
+          notes,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        });
+
+        // 2. Build response link
+        const responseLink = window.location.href.replace('admin-dashboard.html', 'donor-response.html') + '?id=' + docRef.id;
+
+        // 3. Format date & time for WhatsApp message
+        const formattedDate = new Date(date).toLocaleDateString('en-IN', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const formattedTime = reportingTime ? (() => {
+          const [h, m] = reportingTime.split(':');
+          const hr = parseInt(h);
+          return hr + ':' + m + ' ' + (hr >= 12 ? 'PM' : 'AM');
+        })() : 'Not specified';
+
+        // 4. Build WhatsApp link
+        const waMsg = encodeURIComponent(
+          '🩸 VitalLink — Blood Donation Request\n' +
+          'Dear ' + donor.name + ',' +
+          'The campus blood bank is requesting your help to donate blood.\n' +
+          '📅 *Date:* ' + formattedDate + '\n' +
+          '⏰ *Reporting Time:* ' + formattedTime + '\n' +
+          '🏥 *Hospital:* ' + hospitalName + '\n' +
+          '📍 *Address:* ' + hospitalAddress + '\n' +
+          (hospitalPhone ? '📞 *Contact:* ' + hospitalPhone + '' : '') +
+          (notes ? '📝 *Notes:* ' + notes + '' : '') + '\n' +
+          'Please tap the link below to *ACCEPT or DECLINE* this request:\n' +
+          responseLink
+        );
+        const phone = donor.phone.replace(/\D/g, '');
+        const waPhone = phone.startsWith('91') ? phone : '91' + phone;
+        const waLink = 'https://wa.me/' + waPhone + '?text=' + waMsg;
+
+        closeRequestModal();
+        await loadAll();
+
+        // 5. Show WhatsApp popup
+        showWhatsAppPopup(waLink, donor.name, donor.phone);
+
+      } catch(e) {
+        errEl.textContent = 'Failed to save request: ' + e.message;
+        errEl.style.display = 'block';
+      }
+      btn.disabled = false; btn.textContent = '📨 Send Request';
+    };
+
+    // ── SEARCH & FILTER ──
+    window.applyFilter = function() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const bt = document.getElementById('filterBlood').value;
+      const el = document.getElementById('filterEligible').value;
+      filteredDonors = allDonors.filter(d => {
+        const mQ = !q || d.name.toLowerCase().includes(q) || d.studentId.toLowerCase().includes(q) || d.email.toLowerCase().includes(q) || d.department.toLowerCase().includes(q);
+        const mBt = !bt || d.bloodType === bt;
+        const mEl = el==='' || String(d.eligible)===el;
+        return mQ && mBt && mEl;
+      });
+      renderTable();
+    };
+
+    // ── TABS ──
+    window.showTab = function(tab) {
+      document.getElementById('tabDonors').style.display = tab==='donors' ? 'block' : 'none';
+      document.getElementById('tabRequests').style.display = tab==='requests' ? 'block' : 'none';
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+      if (tab === 'requests') renderRequestsPanel();
+    };
+
+    // ── EDIT ──
+    window.openEdit = function(id) {
+      editingId = id;
+      const d = allDonors.find(x => x.id===id);
+      if (!d) return;
+      document.getElementById('edit-name').value = d.name||'';
+      document.getElementById('edit-email').value = d.email||'';
+      document.getElementById('edit-phone').value = d.phone||'';
+      document.getElementById('edit-department').value = d.department||'';
+      document.getElementById('edit-bloodType').value = d.bloodType||'';
+      document.getElementById('edit-age').value = d.age||'';
+      document.getElementById('edit-weight').value = d.weight||'';
+      document.getElementById('edit-eligible').value = String(d.eligible);
+      document.getElementById('edit-condition').value = d.medicalCondition||'none';
+      document.getElementById('edit-ineligibilityReason').value = d.ineligibilityReason||'';
+      document.getElementById('editModal').style.display = 'flex';
+    };
+
+    window.closeEdit = function() {
+      document.getElementById('editModal').style.display = 'none';
+      editingId = null;
+    };
+
+    window.saveEdit = async function() {
+      if (!editingId) return;
+      const btn = document.getElementById('saveEditBtn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const eligible = document.getElementById('edit-eligible').value === 'true';
+      const updates = {
+        name: document.getElementById('edit-name').value.trim(),
+        email: document.getElementById('edit-email').value.trim(),
+        phone: document.getElementById('edit-phone').value.trim(),
+        department: document.getElementById('edit-department').value.trim(),
+        bloodType: document.getElementById('edit-bloodType').value,
+        age: parseInt(document.getElementById('edit-age').value),
+        weight: parseFloat(document.getElementById('edit-weight').value),
+        eligible,
+        medicalCondition: document.getElementById('edit-condition').value,
+        ineligibilityReason: eligible ? '' : document.getElementById('edit-ineligibilityReason').value.trim(),
+        lastUpdated: serverTimestamp(),
+      };
+      try {
+        await updateDoc(doc(db,'donors',editingId), updates);
+        closeEdit();
+        await loadAll();
+      } catch(e) { alert('Update failed: '+e.message); }
+      btn.disabled = false; btn.textContent = 'Save Changes';
+    };
+
+    // ── DELETE ──
+    window.deleteDonor = async function(id, name) {
+      if (!confirm(`Delete donor "${name}"? This cannot be undone.`)) return;
+      try {
+        await deleteDoc(doc(db,'donors',id));
+        await loadAll();
+      } catch(e) { alert('Delete failed: '+e.message); }
+    };
+
+    // ── LOGOUT ──
+    window.logout = async function() {
+      await signOut(auth);
+      window.location.href = 'admin-login.html';
+    };
+
+    window.refreshData = loadAll;
+  </script>
+
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --black:#0a0505;--surface:#120b0b;--surface2:#1e1010;--surface3:#241414;
+      --crimson:#c0392b;--crimson-bright:#e74c3c;--crimson-dim:#8b1a1a;
+      --cream:#f5ede8;--muted:#9a7f7f;--border:rgba(192,57,43,0.2);
+      --error:#ff6b6b;--green:#4ade80;--amber:#fbbf24;--blue:#60a5fa;
+    }
+    body{background:var(--black);color:var(--cream);font-family:'Outfit',sans-serif;min-height:100vh;}
+
+    /* TOPBAR */
+    .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0.9rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+    .brand{display:flex;align-items:center;gap:0.6rem;font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:700;text-decoration:none;color:var(--cream);}
+    .brand-dot{width:32px;height:32px;background:var(--crimson);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+    .brand span{color:var(--crimson-bright);}
+    .topbar-right{display:flex;align-items:center;gap:1rem;}
+    #adminEmail{font-size:0.85rem;color:var(--muted);}
+    .btn-sm{padding:0.45rem 1.1rem;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.84rem;font-weight:500;cursor:pointer;border:none;transition:all 0.2s;}
+    .btn-refresh{background:rgba(192,57,43,0.15);color:var(--crimson-bright);}
+    .btn-refresh:hover{background:rgba(192,57,43,0.25);}
+    .btn-logout{background:var(--surface3);color:var(--muted);border:1px solid var(--border);}
+    .btn-logout:hover{color:var(--cream);}
+
+    /* MAIN */
+    .main{padding:2rem;}
+
+    /* STATS */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.4rem;transition:border-color 0.2s;}
+    .stat-card:hover{border-color:var(--crimson-dim);}
+    .stat-label-sm{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:0.5rem;}
+    .stat-num{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:700;}
+    .stat-num.red{color:var(--crimson-bright);}
+    .stat-num.green{color:var(--green);}
+    .stat-num.amber{color:var(--amber);}
+
+    /* TABS */
+    .tabs{display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0;}
+    .tab-btn{background:none;border:none;padding:0.7rem 1.4rem;color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.92rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.2s;display:flex;align-items:center;gap:0.5rem;}
+    .tab-btn.active{color:var(--crimson-bright);border-bottom-color:var(--crimson-bright);}
+    .tab-btn:hover:not(.active){color:var(--cream);}
+    .req-badge{background:var(--crimson);color:var(--cream);border-radius:100px;font-size:0.7rem;padding:0.1rem 0.45rem;font-weight:600;display:none;}
+
+    /* TOOLBAR */
+    .toolbar{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1.5rem;}
+    .search-wrap{position:relative;flex:1;min-width:220px;}
+    .search-wrap svg{position:absolute;left:0.9rem;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+    .search-wrap input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:0.65rem 1rem 0.65rem 2.5rem;color:var(--cream);font-family:'Outfit',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;}
+    .search-wrap input:focus{border-color:var(--crimson);}
+    .search-wrap input::placeholder{color:rgba(154,127,127,0.5);}
+    .filter-select{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:0.65rem 1rem;color:var(--cream);font-family:'Outfit',sans-serif;font-size:0.88rem;outline:none;cursor:pointer;}
+    .filter-select option{background:var(--surface2);}
+    #resultCount{font-size:0.85rem;color:var(--muted);white-space:nowrap;}
+
+    /* TABLE */
+    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+    .table-scroll{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;min-width:1000px;}
+    thead tr{background:var(--surface2);}
+    thead th{padding:0.9rem 1rem;text-align:left;font-size:0.74rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:500;white-space:nowrap;}
+    tbody tr{border-top:1px solid rgba(192,57,43,0.08);transition:background 0.15s;}
+    tbody tr:hover{background:rgba(192,57,43,0.04);}
+    tbody td{padding:0.85rem 1rem;font-size:0.88rem;vertical-align:middle;}
+    .donor-name{font-weight:500;}
+    .donor-meta{font-size:0.78rem;color:var(--muted);margin-top:0.15rem;}
+    .blood-tag{background:rgba(192,57,43,0.2);color:var(--crimson-bright);border:1px solid rgba(192,57,43,0.3);border-radius:6px;padding:0.2rem 0.55rem;font-size:0.82rem;font-weight:600;}
+    .status-chip{border-radius:100px;padding:0.2rem 0.7rem;font-size:0.78rem;font-weight:500;white-space:nowrap;}
+    .status-chip.eligible{background:rgba(74,222,128,0.12);color:var(--green);border:1px solid rgba(74,222,128,0.25);}
+    .status-chip.ineligible{background:rgba(255,107,107,0.12);color:var(--error);border:1px solid rgba(255,107,107,0.25);}
+    .alert-chip{font-size:1rem;cursor:help;}
+    .action-btn{padding:0.3rem 0.7rem;border-radius:7px;font-family:'Outfit',sans-serif;font-size:0.76rem;font-weight:500;cursor:pointer;border:1px solid;transition:all 0.2s;white-space:nowrap;}
+    .req-btn{background:rgba(96,165,250,0.1);color:var(--blue);border-color:rgba(96,165,250,0.25);}
+    .req-btn:hover{background:var(--blue);color:#000;}
+    .edit-btn{background:rgba(192,57,43,0.12);color:var(--crimson-bright);border-color:rgba(192,57,43,0.25);}
+    .edit-btn:hover{background:var(--crimson);color:var(--cream);}
+    .delete-btn{background:rgba(255,107,107,0.08);color:var(--error);border-color:rgba(255,107,107,0.2);}
+    .delete-btn:hover{background:var(--error);color:var(--cream);}
+
+    /* REQUEST STATUS CHIPS */
+    .req-chip{border-radius:100px;padding:0.18rem 0.6rem;font-size:0.76rem;font-weight:500;white-space:nowrap;}
+    .req-pending{background:rgba(251,191,36,0.12);color:var(--amber);border:1px solid rgba(251,191,36,0.25);}
+    .req-accepted{background:rgba(74,222,128,0.12);color:var(--green);border:1px solid rgba(74,222,128,0.25);}
+    .req-declined{background:rgba(255,107,107,0.12);color:var(--error);border:1px solid rgba(255,107,107,0.25);}
+
+    /* REQUESTS TAB PANEL */
+    .req-list{display:flex;flex-direction:column;gap:1rem;}
+    .req-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.5rem;}
+    .req-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:0.8rem;}
+    .req-donor-name{font-weight:600;font-size:0.95rem;}
+    .req-donor-meta{font-size:0.8rem;color:var(--muted);margin-top:0.15rem;}
+    .req-details{display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.84rem;color:var(--muted);}
+    .req-details strong{color:var(--cream);}
+    .req-reason{margin-top:0.7rem;font-size:0.82rem;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.15);border-radius:8px;padding:0.5rem 0.9rem;color:var(--error);}
+    .req-reason.accepted-note{background:rgba(74,222,128,0.08);border-color:rgba(74,222,128,0.15);color:var(--green);}
+
+    /* LOADING */
+    #loadingState{display:flex;align-items:center;justify-content:center;padding:4rem;color:var(--muted);gap:0.8rem;}
+    .spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--crimson);border-radius:50%;animation:spin 0.7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* MODALS */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,5,5,0.85);backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center;padding:1rem;}
+    .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 30px 80px rgba(0,0,0,0.6);}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
+    .modal-header h2{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:700;}
+    .modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.4rem;line-height:1;transition:color 0.2s;}
+    .modal-close:hover{color:var(--cream);}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+    .modal-grid .full{grid-column:1/-1;}
+    .mfield{display:flex;flex-direction:column;gap:0.4rem;}
+    .mfield label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:500;}
+    .mfield input,.mfield select,.mfield textarea{background:rgba(255,255,255,0.04);border:1.5px solid var(--border);border-radius:9px;padding:0.7rem 0.9rem;color:var(--cream);font-family:'Outfit',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;resize:vertical;}
+    .mfield input:focus,.mfield select:focus,.mfield textarea:focus{border-color:var(--crimson);}
+    .mfield select option{background:var(--surface2);}
+    .modal-actions{display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end;}
+    .btn-save{padding:0.75rem 2rem;background:var(--crimson);color:var(--cream);border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+    .btn-save:hover:not(:disabled){background:var(--crimson-bright);}
+    .btn-save:disabled{opacity:0.6;cursor:not-allowed;}
+    .btn-save.blue{background:#2563eb;}
+    .btn-save.blue:hover:not(:disabled){background:#3b82f6;}
+    .btn-cancel{padding:0.75rem 1.5rem;background:var(--surface3);color:var(--muted);border:1px solid var(--border);border-radius:10px;font-family:'Outfit',sans-serif;font-size:0.95rem;cursor:pointer;transition:all 0.2s;}
+    .btn-cancel:hover{color:var(--cream);}
+    .modal-err{background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.25);border-radius:8px;padding:0.6rem 0.9rem;font-size:0.84rem;color:var(--error);display:none;margin-bottom:1rem;}
+    .donor-info-box{background:rgba(192,57,43,0.08);border:1px solid var(--border);border-radius:9px;padding:0.7rem 1rem;font-size:0.88rem;color:var(--muted);margin-bottom:1.2rem;}
+    .donor-info-box strong{color:var(--cream);}
+    .section-label{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--crimson-bright);margin:0.8rem 0 0.4rem;grid-column:1/-1;}
+
+    /* WHATSAPP POPUP */
+    .wa-popup-overlay{position:fixed;inset:0;background:rgba(10,5,5,0.85);backdrop-filter:blur(6px);z-index:300;display:none;align-items:center;justify-content:center;padding:1rem;}
+    .wa-popup{background:var(--surface);border:1px solid rgba(37,211,102,0.3);border-radius:20px;padding:2rem;max-width:420px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,0.6);text-align:center;}
+    .wa-icon{width:64px;height:64px;background:rgba(37,211,102,0.15);border:2px solid rgba(37,211,102,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 1rem;}
+    .wa-popup h3{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:700;margin-bottom:0.4rem;}
+    .wa-popup p{color:var(--muted);font-size:0.88rem;line-height:1.6;margin-bottom:1.4rem;}
+    .wa-donor-info{background:rgba(37,211,102,0.06);border:1px solid rgba(37,211,102,0.15);border-radius:10px;padding:0.7rem 1rem;font-size:0.88rem;color:var(--cream);margin-bottom:1.4rem;text-align:left;}
+    .wa-donor-info span{color:var(--muted);font-size:0.78rem;display:block;margin-bottom:0.2rem;}
+    .btn-wa{display:flex;align-items:center;justify-content:center;gap:0.6rem;width:100%;padding:0.9rem;background:#25d366;color:#fff;border:none;border-radius:12px;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.2s;margin-bottom:0.8rem;}
+    .btn-wa:hover{background:#20bd5a;transform:translateY(-2px);}
+    .btn-wa-skip{width:100%;padding:0.75rem;background:var(--surface3);color:var(--muted);border:1px solid var(--border);border-radius:12px;font-family:'Outfit',sans-serif;font-size:0.92rem;cursor:pointer;transition:all 0.2s;}
+    .btn-wa-skip:hover{color:var(--cream);}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:2rem;right:2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.4rem;font-size:0.9rem;color:var(--cream);box-shadow:0 8px 30px rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;gap:0.8rem;max-width:380px;animation:toastIn 0.3s ease;transition:opacity 0.4s;}
+    .toast.warn{border-color:rgba(251,191,36,0.4);}
+    .toast.hide{opacity:0;}
+    @keyframes toastIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+    @media(max-width:768px){
+      .stats-grid{grid-template-columns:1fr 1fr;}
+      .main{padding:1rem;}
+      .topbar{padding:0.8rem 1rem;}
+      #adminEmail{display:none;}
+      .modal-grid{grid-template-columns:1fr;}
+      .modal-grid .full{grid-column:1;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="index.html" class="brand">
+    <div class="brand-dot">🩸</div>
+    Vital<span>Link</span>
+  </a>
+  <div class="topbar-right">
+    <span id="adminEmail">Loading…</span>
+    <button class="btn-sm btn-refresh" onclick="refreshData()">⟳ Refresh</button>
+    <button class="btn-sm btn-logout" onclick="logout()">Sign Out</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label-sm">Total Donors</div>
+      <div class="stat-num" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label-sm">Eligible</div>
+      <div class="stat-num green" id="statEligible">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label-sm">Ineligible</div>
+      <div class="stat-num red" id="statIneligible">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label-sm">⏰ Stale (&gt;30d)</div>
+      <div class="stat-num amber" id="statStale">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-donors" onclick="showTab('donors')">👥 Donors</button>
+    <button class="tab-btn" id="tab-requests" onclick="showTab('requests')">
+      📨 Donation Requests
+      <span class="req-badge" id="reqBadge">0</span>
+    </button>
+  </div>
+
+  <!-- TAB: DONORS -->
+  <div id="tabDonors">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search name, ID, email, department…" oninput="applyFilter()"/>
+      </div>
+      <select class="filter-select" id="filterBlood" onchange="applyFilter()">
+        <option value="">All Blood Types</option>
+        <option>A+</option><option>A−</option><option>B+</option><option>B−</option>
+        <option>AB+</option><option>AB−</option><option>O+</option><option>O−</option>
+      </select>
+      <select class="filter-select" id="filterEligible" onchange="applyFilter()">
+        <option value="">All Status</option>
+        <option value="true">Eligible</option>
+        <option value="false">Ineligible</option>
+      </select>
+      <span id="resultCount"></span>
+    </div>
+    <div class="table-card">
+      <div id="loadingState"><div class="spinner"></div> Loading donor records…</div>
+      <div id="tableWrap" style="display:none;">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Donor</th>
+                <th>Blood</th>
+                <th>Contact</th>
+                <th style="text-align:center">Age/Weight</th>
+                <th style="text-align:center">Status</th>
+                <th>Alerts</th>
+                <th>Request Status</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="donorBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: REQUESTS -->
+  <div id="tabRequests" style="display:none;">
+    <div class="req-list" id="requestsList">
+      <p style="color:var(--muted);text-align:center;padding:2rem">Loading requests…</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- REQUEST MODAL -->
+<div class="modal-overlay" id="requestModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📨 Send Donation Request</h2>
+      <button class="modal-close" onclick="closeRequestModal()">✕</button>
+    </div>
+    <div class="donor-info-box" id="req-donorInfo"></div>
+    <div id="reqErr" class="modal-err"></div>
+    <div class="modal-grid">
+      <div class="mfield full">
+        <label>Requested Donation Date</label>
+        <input type="date" id="req-date"/>
+      </div>
+
+      <div class="section-label">🏥 Hospital / Clinic Details</div>
+
+      <div class="mfield full">
+        <label>Hospital / Clinic Name</label>
+        <input type="text" id="req-hospitalName" placeholder="e.g. Government Medical College Hospital"/>
+      </div>
+      <div class="mfield full">
+        <label>Address</label>
+        <input type="text" id="req-hospitalAddress" placeholder="Full address"/>
+      </div>
+      <div class="mfield">
+        <label>Contact Number</label>
+        <input type="tel" id="req-hospitalPhone" placeholder="Hospital phone (optional)"/>
+      </div>
+      <div class="mfield">
+        <label>Reporting Time</label>
+        <input type="time" id="req-reportingTime"/>
+      </div>
+      <div class="mfield full">
+        <label>Additional Notes for Donor</label>
+        <textarea id="req-notes" rows="3" placeholder="e.g. Please bring your college ID. Report to the blood bank on 2nd floor."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRequestModal()">Cancel</button>
+      <button class="btn-save blue" id="sendReqBtn" onclick="sendRequest()">📨 Send Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Donor Record</h2>
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="modal-grid">
+      <div class="mfield full"><label>Full Name</label><input type="text" id="edit-name"/></div>
+      <div class="mfield"><label>Email</label><input type="email" id="edit-email"/></div>
+      <div class="mfield"><label>Phone</label><input type="tel" id="edit-phone"/></div>
+      <div class="mfield full"><label>Department</label><input type="text" id="edit-department"/></div>
+      <div class="mfield">
+        <label>Blood Type</label>
+        <select id="edit-bloodType">
+          <option>A+</option><option>A−</option><option>B+</option><option>B−</option>
+          <option>AB+</option><option>AB−</option><option>O+</option><option>O−</option>
+        </select>
+      </div>
+      <div class="mfield">
+        <label>Eligibility</label>
+        <select id="edit-eligible">
+          <option value="true">Eligible</option>
+          <option value="false">Ineligible</option>
+        </select>
+      </div>
+      <div class="mfield"><label>Age</label><input type="number" id="edit-age" min="18" max="65"/></div>
+      <div class="mfield"><label>Weight (kg)</label><input type="number" id="edit-weight" min="50" step="0.1"/></div>
+      <div class="mfield full">
+        <label>Medical Condition</label>
+        <select id="edit-condition">
+          <option value="none">None</option>
+          <option value="diabetes">Diabetes</option>
+          <option value="hypertension">Hypertension / Heart condition</option>
+          <option value="hiv">HIV / Hepatitis</option>
+          <option value="cancer">Cancer (active)</option>
+          <option value="pregnancy">Pregnancy / Recent childbirth</option>
+          <option value="surgery_recent">Surgery in last 6 months</option>
+          <option value="medication">On regular medication</option>
+          <option value="other">Other condition</option>
+        </select>
+      </div>
+      <div class="mfield full">
+        <label>Ineligibility Reason</label>
+        <input type="text" id="edit-ineligibilityReason" placeholder="e.g. Donated 45 days ago"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEdit()">Cancel</button>
+      <button class="btn-save" id="saveEditBtn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHATSAPP POPUP -->
+<div class="wa-popup-overlay" id="waPopupOverlay">
+  <div class="wa-popup">
+    <div class="wa-icon">📲</div>
+    <h3>Send via WhatsApp</h3>
+    <p>Request saved! Send it to the donor via WhatsApp so they can accept or decline.</p>
+    <div class="wa-donor-info">
+      <span>Sending to</span>
+      <strong id="wa-donorName"></strong> · <span id="wa-donorPhone" style="display:inline;font-size:0.88rem;color:var(--muted);"></span>
+    </div>
+    <a id="waOpenBtn" href="#" target="_blank" class="btn-wa">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.549 4.099 1.508 5.825L.057 23.885a.5.5 0 00.606.63l6.288-1.642A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.878 9.878 0 01-5.031-1.375l-.36-.214-3.733.976.999-3.64-.235-.374A9.867 9.867 0 012.106 12C2.106 6.533 6.533 2.106 12 2.106S21.894 6.533 21.894 12 17.467 21.894 12 21.894z"/></svg>
+      Open WhatsApp
+    </a>
+    <button class="btn-wa-skip" onclick="closeWaPopup()">Skip for now</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script>
+  function showWhatsAppPopup(waLink, donorName, donorPhone) {
+    document.getElementById('wa-donorName').textContent = donorName;
+    document.getElementById('wa-donorPhone').textContent = donorPhone;
+    document.getElementById('waOpenBtn').href = waLink;
+    document.getElementById('waPopupOverlay').style.display = 'flex';
+  }
+
+  function closeWaPopup() {
+    document.getElementById('waPopupOverlay').style.display = 'none';
+  }
+
+  // Close popup when clicking outside
+  document.getElementById('waPopupOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeWaPopup();
+  });
+
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (type==='warn' ? ' warn' : '');
+    t.style.display = 'flex';
+    setTimeout(() => { t.classList.add('hide'); }, 3500);
+    setTimeout(() => { t.style.display='none'; t.classList.remove('hide'); }, 4000);
+  }
+</script>
+</body>
+</html>

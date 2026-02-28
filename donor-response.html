@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Respond to Request — VitalLink</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --black: #0a0505;
+      --surface: #120b0b;
+      --surface2: #1e1010;
+      --crimson: #c0392b;
+      --crimson-bright: #e74c3c;
+      --cream: #f5ede8;
+      --muted: #9a7f7f;
+      --border: rgba(192, 57, 43, 0.2);
+      --green: #2ecc71;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: var(--black); 
+      color: var(--cream); 
+      font-family: 'Outfit', sans-serif; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--crimson-bright);
+    }
+
+    h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; margin-bottom: 1rem; }
+    p { color: var(--muted); line-height: 1.6; margin-bottom: 1.5rem; }
+
+    .details-box {
+      background: var(--surface2);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: left;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    .detail-item { margin-bottom: 0.8rem; font-size: 0.95rem; }
+    .detail-item strong { color: var(--crimson-bright); display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      margin-bottom: 0.8rem;
+    }
+
+    .btn-accept { background: var(--green); color: white; }
+    .btn-accept:hover { background: #27ae60; transform: translateY(-2px); }
+
+    .btn-decline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-decline:hover { color: var(--crimson-bright); border-color: var(--crimson-bright); }
+
+    .btn-confirm-decline { background: var(--crimson); color: white; }
+
+    select {
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: white;
+      border-radius: 10px;
+      margin-bottom: 1.2rem;
+      outline: none;
+    }
+
+    #loading { font-size: 1.2rem; color: var(--muted); }
+    .hidden { display: none; }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate { animation: fadeIn 0.4s ease forwards; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo">🩸 VitalLink</div>
+    
+    <div id="loader">
+      <p>Fetching request details...</p>
+    </div>
+
+    <div id="content" class="hidden animate">
+      <h2>Blood Donation Request</h2>
+      <p>A patient requires assistance. Please review the details below.</p>
+
+      <div class="details-box">
+        <div class="detail-item"><strong>Hospital</strong> <span id="hospName"></span></div>
+        <div class="detail-item"><strong>Address</strong> <span id="hospAddr"></span></div>
+        <div class="detail-item"><strong>Date & Time</strong> <span id="reqDateTime"></span></div>
+        <div id="notesArea" class="detail-item hidden"><strong>Notes</strong> <span id="reqNotes"></span></div>
+      </div>
+
+      <div id="responseArea">
+        <div id="initialActions">
+          <button class="btn btn-accept" onclick="handleResponse('accepted')">Accept Request</button>
+          <button class="btn btn-decline" onclick="showDeclineUI()">I cannot attend</button>
+        </div>
+
+        <div id="declineUI" class="hidden">
+          <label style="display:block; text-align:left; font-size:0.8rem; margin-bottom:0.5rem; color:var(--muted);">PLEASE SELECT A REASON:</label>
+          <select id="declineReason">
+            <option value="Health Issues">Unwell (Fever/Cold/Flu)</option>
+            <option value="Travel">Out of town / Traveling</option>
+            <option value="Recent Donation">Donated in the last 3 months</option>
+            <option value="Academic/Work">Exam or Work commitment</option>
+            <option value="Medication">On antibiotics/medication</option>
+            <option value="Other">Other reason</option>
+          </select>
+          <button class="btn btn-confirm-decline" onclick="handleResponse('declined')">Confirm Decline</button>
+          <button class="btn btn-decline" style="border:none;" onclick="hideDeclineUI()">← Back</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="statusMessage" class="hidden animate">
+      <h2 id="statusTitle">Thank You!</h2>
+      <p id="statusText"></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC--ZBeDXNvgDGbXdYquW6eiVRZ1xo_zxM",
+      authDomain: "vitallink-2dddd.firebaseapp.com",
+      projectId: "vitallink-2dddd",
+      storageBucket: "vitallink-2dddd.appspot.com",
+      messagingSenderId: "18565970161",
+      appId: "1:18565970161:web:8c946d8b981c4b64949150"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const requestId = params.get('id');
+
+    async function loadRequest() {
+      if (!requestId) {
+        showError("Invalid link. Please check the message sent to you.");
+        return;
+      }
+
+      try {
+        const docRef = doc(db, "donationRequests", requestId);
+        const snap = await getDoc(docRef);
+
+        if (!snap.exists()) {
+          showError("Request not found or has been expired.");
+          return;
+        }
+
+        const data = snap.data();
+
+        // Check if already responded
+        if (data.status !== 'pending') {
+          showFinishedState(data.status);
+          return;
+        }
+
+        // Fill UI
+        document.getElementById('hospName').textContent = data.hospitalName;
+        document.getElementById('hospAddr').textContent = data.hospitalAddress;
+        document.getElementById('reqDateTime').textContent = `${data.donationDate} at ${data.reportingTime || 'TBD'}`;
+        
+        if (data.notes) {
+          document.getElementById('reqNotes').textContent = data.notes;
+          document.getElementById('notesArea').classList.remove('hidden');
+        }
+
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+      } catch (e) {
+        showError("System error: " + e.message);
+      }
+    }
+
+    window.showDeclineUI = () => {
+      document.getElementById('initialActions').classList.add('hidden');
+      document.getElementById('declineUI').classList.remove('hidden');
+    };
+
+    window.hideDeclineUI = () => {
+      document.getElementById('declineUI').classList.add('hidden');
+      document.getElementById('initialActions').classList.remove('hidden');
+    };
+
+    window.handleResponse = async (status) => {
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Updating...";
+
+      try {
+        const docRef = doc(db, "donationRequests", requestId);
+        const updateData = {
+          status: status,
+          respondedAt: serverTimestamp()
+        };
+
+        if (status === 'declined') {
+          updateData.declineReason = document.getElementById('declineReason').value;
+        }
+
+        await updateDoc(docRef, updateData); // Update Firestore status
+        showFinishedState(status);
+
+      } catch (e) {
+        alert("Update failed: " + e.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    };
+
+    function showFinishedState(status) {
+      document.getElementById('content').classList.add('hidden');
+      document.getElementById('loader').classList.add('hidden');
+      const msgWrap = document.getElementById('statusMessage');
+      const title = document.getElementById('statusTitle');
+      const text = document.getElementById('statusText');
+
+      msgWrap.classList.remove('hidden');
+      if (status === 'accepted') {
+        title.textContent = "See you there! ✅";
+        title.style.color = "var(--green)";
+        text.textContent = "Your response has been sent to the hospital. Thank you for your kindness.";
+      } else {
+        title.textContent = "Request Declined ❌";
+        title.style.color = "var(--crimson-bright)";
+        text.textContent = "We understand. We have notified the admin so they can find another donor.";
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('loader').innerHTML = `<p style="color:var(--crimson-bright)">${msg}</p>`;
+    }
+
+    loadRequest();
+  </script>
+</body>
+</html>
