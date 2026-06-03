@@ -166,14 +166,14 @@
   import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
-      apiKey: "AIzaSyC--ZBeDXNvgDGbXdYquW6eiVRZ1xo_zxM",
-  authDomain: "vitallink-2dddd.firebaseapp.com",
-  projectId: "vitallink-2dddd",
-  storageBucket: "vitallink-2dddd.appspot.com",
-  messagingSenderId: "18565970161",
-  appId: "1:18565970161:web:8c946d8b981c4b64949150",
-  measurementId: "G-JJ6FJ8B6M3"
-  };
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
+};
 
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
